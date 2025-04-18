@@ -1,8 +1,8 @@
 ﻿import React from 'react';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
 import { Card } from '../UI/Card';
-import { TimeEntryList } from '../TimeTracking/TimeEntryList';
 import { formatDuration } from '../../utils/timeCalculator';
+import { formatDate, formatTime } from '../../utils/dateFormatter';
 
 export function Dashboard() {
     const { timeEntries, getTodayTrackedTime, getCurrentMonthEntries } = useTimeEntries();
@@ -14,6 +14,11 @@ export function Dashboard() {
 
     // Calculate progress percentage (based on 8 hours daily goal)
     const todayProgress = Math.min(Math.round((todayTime / 480) * 100), 100);
+
+    // Get recent entries (last 5)
+    const recentEntries = [...timeEntries]
+        .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+        .slice(0, 5);
 
     return (
         <div className="space-y-6">
@@ -87,15 +92,53 @@ export function Dashboard() {
             </div>
 
             {/* Recent Time Entries */}
-            <TimeEntryList
-                limit={5}
-                showToolbar={false}
-                showPagination={false}
-                title="Chấm Công Gần Đây"
-                onViewAll={() => alert('Chuyển đến tab Lịch Sử')}
-            />
+            <Card title="Chấm Công Gần Đây">
+                {recentEntries.length === 0 ? (
+                    <div className="text-center py-6">
+                        <p className="text-gray-500">Chưa có dữ liệu chấm công nào.</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                            <thead>
+                            <tr className="bg-gray-50">
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dự án</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ghi chú</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {recentEntries.map(entry => (
+                                <tr
+                                    key={entry.id}
+                                    className="border-b border-gray-100 hover:bg-gray-50"
+                                >
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center">
+                                            <div
+                                                className="w-2 h-2 rounded-full mr-2"
+                                                style={{backgroundColor: entry.projectColor || '#4F46E5'}}
+                                            ></div>
+                                            <span className="font-medium text-gray-900">{entry.projectName}</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-4 text-sm text-gray-500">{formatDate(entry.startTime)}</td>
+                                    <td className="py-3 px-4 text-sm text-gray-500">
+                                        {formatTime(entry.startTime)} - {formatTime(entry.endTime)}
+                                    </td>
+                                    <td className="py-3 px-4 font-medium">{formatDuration(entry.duration)}</td>
+                                    <td className="py-3 px-4 text-sm text-gray-500">
+                                        <div className="max-w-xs truncate">{entry.note || '-'}</div>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Card>
         </div>
     );
 }
-
-export default Dashboard;

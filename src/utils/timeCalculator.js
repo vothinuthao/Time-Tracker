@@ -1,5 +1,4 @@
-﻿// src/utils/timeCalculator.js
-export function calculateDuration(startTime, endTime) {
+﻿export function calculateDuration(startTime, endTime) {
     if (!startTime || !endTime) return 0;
 
     const start = startTime instanceof Date ? startTime : new Date(startTime);

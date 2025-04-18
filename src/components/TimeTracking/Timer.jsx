@@ -1,5 +1,4 @@
-﻿// components/TimeTracking/Timer.jsx
-import React from 'react';
+﻿import React from 'react';
 import { formatTime } from '../../utils/dateFormatter';
 
 export function Timer({ isTracking, startTime, timer, projectName }) {

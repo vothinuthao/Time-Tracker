@@ -1,7 +1,7 @@
 ﻿// src/hooks/useTimeEntries.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useProjects } from './useProjects';
-import { saveToStorage, loadFromStorage } from '../utils/storage';
+import { timeEntryService } from '../services/localStorageService';
 import { calculateDuration } from '../utils/timeCalculator';
 
 const TimeEntriesContext = createContext();
@@ -17,13 +17,13 @@ export function TimeEntriesProvider({ children }) {
 
     // Load time entries from storage on initial render
     useEffect(() => {
-        const savedEntries = loadFromStorage('time_entries');
+        const savedEntries = timeEntryService.getAll();
         if (savedEntries && savedEntries.length > 0) {
             setTimeEntries(savedEntries);
         }
 
         // Check if there's an active tracking session
-        const activeSession = loadFromStorage('active_session');
+        const activeSession = timeEntryService.getActiveSession();
         if (activeSession) {
             setIsTracking(true);
             setStartTime(new Date(activeSession.startTime));
@@ -33,21 +33,21 @@ export function TimeEntriesProvider({ children }) {
 
     // Save time entries to storage whenever they change
     useEffect(() => {
-        saveToStorage('time_entries', timeEntries);
+        timeEntryService.save(timeEntries);
         calculateMonthSummary();
     }, [timeEntries]);
 
     // Save active session whenever tracking state changes
     useEffect(() => {
         if (isTracking && startTime) {
-            saveToStorage('active_session', {
+            timeEntryService.saveActiveSession({
                 projectId: currentProject,
                 startTime: startTime.toISOString(),
                 note: currentNote
             });
         } else {
             // Remove active session if not tracking
-            localStorage.removeItem('active_session');
+            timeEntryService.clearActiveSession();
         }
     }, [isTracking, startTime, currentProject, currentNote]);
 
@@ -118,10 +118,14 @@ export function TimeEntriesProvider({ children }) {
             date: endTime.toISOString().split('T')[0]
         };
 
-        setTimeEntries(prev => [...prev, newEntry]);
+        const updatedEntries = [...timeEntries, newEntry];
+        setTimeEntries(updatedEntries);
+        timeEntryService.save(updatedEntries);
+
         setIsTracking(false);
         setStartTime(null);
         setCurrentNote('');
+        timeEntryService.clearActiveSession();
 
         return newEntry;
     };
@@ -139,40 +143,46 @@ export function TimeEntriesProvider({ children }) {
             entryData.projectColor = project?.color || '#4F46E5';
         }
 
-        setTimeEntries(prev => [...prev, entryData]);
+        const updatedEntries = [...timeEntries, entryData];
+        setTimeEntries(updatedEntries);
+        timeEntryService.save(updatedEntries);
+
         return entryData;
     };
 
     // Delete a time entry
     const deleteEntry = (id) => {
-        setTimeEntries(prev => prev.filter(entry => entry.id !== id));
+        const updatedEntries = timeEntries.filter(entry => entry.id !== id);
+        setTimeEntries(updatedEntries);
+        timeEntryService.save(updatedEntries);
     };
 
     // Edit a time entry
     const editEntry = (id, updatedData) => {
-        setTimeEntries(prev =>
-            prev.map(entry => {
-                if (entry.id === id) {
-                    const updated = { ...entry, ...updatedData };
+        const updatedEntries = timeEntries.map(entry => {
+            if (entry.id === id) {
+                const updated = { ...entry, ...updatedData };
 
-                    // Recalculate duration if start or end time changed
-                    if (updatedData.startTime || updatedData.endTime) {
-                        const start = new Date(updatedData.startTime || entry.startTime);
-                        const end = new Date(updatedData.endTime || entry.endTime);
-                        updated.duration = calculateDuration(start, end);
-                    }
-
-                    // Update project color if project changed
-                    if (updatedData.projectId && updatedData.projectId !== entry.projectId) {
-                        const project = projects.find(p => p.id === updatedData.projectId);
-                        updated.projectColor = project?.color || '#4F46E5';
-                    }
-
-                    return updated;
+                // Recalculate duration if start or end time changed
+                if (updatedData.startTime || updatedData.endTime) {
+                    const start = new Date(updatedData.startTime || entry.startTime);
+                    const end = new Date(updatedData.endTime || entry.endTime);
+                    updated.duration = calculateDuration(start, end);
                 }
-                return entry;
-            })
-        );
+
+                // Update project color if project changed
+                if (updatedData.projectId && updatedData.projectId !== entry.projectId) {
+                    const project = projects.find(p => p.id === updatedData.projectId);
+                    updated.projectColor = project?.color || '#4F46E5';
+                }
+
+                return updated;
+            }
+            return entry;
+        });
+
+        setTimeEntries(updatedEntries);
+        timeEntryService.save(updatedEntries);
     };
 
     // Get current month entries

@@ -1,16 +1,21 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useProjects } from '../../hooks/useProjects';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
-import { formatTime, formatDate } from '../../utils/dateFormatter';
-import { formatDuration, getElapsedTime } from '../../utils/timeCalculator';
+import { formatDuration } from '../../utils/timeCalculator';
 import { Card } from '../UI/Card';
 import { Button } from '../UI/Button';
-import { ManualTimeEntryForm } from './ManualTimeEntryForm';
 import { Timer } from './Timer';
 
 export function TimeTracking() {
     const [showManualEntry, setShowManualEntry] = useState(false);
     const [timer, setTimer] = useState('00:00:00');
+    const [manualFormData, setManualFormData] = useState({
+        projectId: '',
+        date: new Date().toISOString().split('T')[0],
+        startTime: '09:00',
+        endTime: '17:00',
+        note: '',
+    });
 
     const { projects, currentProject, selectProject, getCurrentProject } = useProjects();
     const {
@@ -20,11 +25,12 @@ export function TimeTracking() {
         startTracking,
         stopTracking,
         updateNote,
-        getTodayTrackedTime
+        getTodayTrackedTime,
+        addManualTimeEntry
     } = useTimeEntries();
 
     // Handle timer updates
-    React.useEffect(() => {
+    useEffect(() => {
         let intervalId;
 
         if (isTracking && startTime) {
@@ -51,6 +57,66 @@ export function TimeTracking() {
         setShowManualEntry(!showManualEntry);
     };
 
+    // Handle manual form changes
+    const handleManualFormChange = (e) => {
+        const { name, value } = e.target;
+        setManualFormData({
+            ...manualFormData,
+            [name]: value
+        });
+    };
+
+    // Submit manual time entry
+    const handleManualSubmit = (e) => {
+        e.preventDefault();
+
+        if (!manualFormData.projectId) {
+            alert('Vui lòng chọn dự án');
+            return;
+        }
+
+        const startDateTime = new Date(`${manualFormData.date}T${manualFormData.startTime}`);
+        const endDateTime = new Date(`${manualFormData.date}T${manualFormData.endTime}`);
+
+        if (endDateTime <= startDateTime) {
+            alert('Thời gian kết thúc phải sau thời gian bắt đầu');
+            return;
+        }
+
+        // Find project
+        const project = projects.find(p => p.id === manualFormData.projectId);
+        if (!project) return;
+
+        // Calculate duration
+        const durationMs = endDateTime - startDateTime;
+        const durationMinutes = Math.round(durationMs / 1000 / 60);
+
+        // Create entry
+        const newEntry = {
+            projectId: manualFormData.projectId,
+            projectName: project.name,
+            projectColor: project.color || '#4F46E5',
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+            duration: durationMinutes,
+            note: manualFormData.note,
+            date: manualFormData.date
+        };
+
+        addManualTimeEntry(newEntry);
+
+        // Reset form
+        setManualFormData({
+            projectId: '',
+            date: new Date().toISOString().split('T')[0],
+            startTime: '09:00',
+            endTime: '17:00',
+            note: '',
+        });
+
+        setShowManualEntry(false);
+    };
+
     // Get the current selected project
     const currentProjectData = getCurrentProject();
     const todayTrackedTime = formatDuration(getTodayTrackedTime());
@@ -69,7 +135,93 @@ export function TimeTracking() {
                 </div>
 
                 {showManualEntry ? (
-                    <ManualTimeEntryForm onCancel={() => setShowManualEntry(false)} />
+                    <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+                        <h3 className="font-medium text-indigo-700 mb-2">Thêm Thời Gian Thủ Công</h3>
+                        <p className="text-sm text-indigo-600 mb-4">Thêm thời gian làm việc của bạn bằng cách nhập thông tin dưới đây</p>
+
+                        <form onSubmit={handleManualSubmit}>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Dự án</label>
+                                    <select
+                                        name="projectId"
+                                        value={manualFormData.projectId}
+                                        onChange={handleManualFormChange}
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        required
+                                    >
+                                        <option value="">Chọn dự án</option>
+                                        {projects.map(project => (
+                                            <option key={project.id} value={project.id}>{project.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ngày</label>
+                                    <input
+                                        type="date"
+                                        name="date"
+                                        value={manualFormData.date}
+                                        onChange={handleManualFormChange}
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Bắt đầu</label>
+                                        <input
+                                            type="time"
+                                            name="startTime"
+                                            value={manualFormData.startTime}
+                                            onChange={handleManualFormChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Kết thúc</label>
+                                        <input
+                                            type="time"
+                                            name="endTime"
+                                            value={manualFormData.endTime}
+                                            onChange={handleManualFormChange}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả công việc</label>
+                                <textarea
+                                    name="note"
+                                    value={manualFormData.note}
+                                    onChange={handleManualFormChange}
+                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="Mô tả công việc bạn đã làm..."
+                                    rows="2"
+                                ></textarea>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setShowManualEntry(false)}
+                                    className="mr-2"
+                                >
+                                    Hủy
+                                </Button>
+                                <Button type="submit" variant="primary">
+                                    Lưu
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
                 ) : (
                     <div className="flex flex-col md:flex-row gap-6">
                         <div className="md:w-2/3">
@@ -81,11 +233,11 @@ export function TimeTracking() {
                                             key={project.id}
                                             onClick={() => selectProject(project.id)}
                                             className={`
-                        p-4 border rounded-lg cursor-pointer transition-all
-                        ${currentProject === project.id
+                                                p-4 border rounded-lg cursor-pointer transition-all
+                                                ${currentProject === project.id
                                                 ? 'bg-indigo-50 border-indigo-300 shadow-sm'
                                                 : 'hover:bg-gray-50 border-gray-200'}
-                      `}
+                                            `}
                                         >
                                             <div className="flex items-center">
                                                 <div

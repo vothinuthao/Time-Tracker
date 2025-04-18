@@ -8,7 +8,6 @@ export function Input({
                           error = null,
                           ...props
                       }) {
-    // Generate a unique ID if one isn't provided
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
 
     return (
@@ -26,11 +25,11 @@ export function Input({
                 id={inputId}
                 type={type}
                 className={`
-          w-full py-2 px-3 rounded-lg border 
-          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-          ${error ? 'border-red-300' : 'border-gray-300'}
-          ${className}
-        `}
+                    w-full py-2 px-3 rounded-lg border 
+                    focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                    ${error ? 'border-red-300' : 'border-gray-300'}
+                    ${className}
+                `}
                 {...props}
             />
 
