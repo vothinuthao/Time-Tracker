@@ -1,7 +1,4 @@
-﻿// src/services/localStorageService.js
-
-// Keys for localStorage
-const STORAGE_KEYS = {
+﻿const STORAGE_KEYS = {
     PROJECTS: 'timetracker_projects',
     TIME_ENTRIES: 'timetracker_entries',
     ACTIVE_SESSION: 'timetracker_active_session',
@@ -23,6 +20,7 @@ export const projectService = {
         const projects = projectService.getAll();
         const newProject = {
             id: Date.now().toString(),
+            hourlyRate: 20,
             ...projectData,
             createdAt: new Date().toISOString()
         };
@@ -47,7 +45,6 @@ export const projectService = {
         const filteredProjects = projects.filter(project => project.id !== id);
         projectService.save(filteredProjects);
 
-        // Also clear current project if it was deleted
         const currentProject = localStorage.getItem(STORAGE_KEYS.CURRENT_PROJECT);
         if (currentProject === id) {
             localStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT);

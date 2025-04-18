@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useProjects } from '../../hooks/useProjects';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
+import { useSettings } from '../../hooks/useSettings';
 import { formatDuration } from '../../utils/timeCalculator';
 import { Card } from '../UI/Card';
 import { Button } from '../UI/Button';
@@ -28,6 +29,8 @@ export function TimeTracking() {
         getTodayTrackedTime,
         addManualTimeEntry
     } = useTimeEntries();
+
+    const { settings } = useSettings();
 
     // Handle timer updates
     useEffect(() => {
@@ -119,7 +122,11 @@ export function TimeTracking() {
 
     // Get the current selected project
     const currentProjectData = getCurrentProject();
-    const todayTrackedTime = formatDuration(getTodayTrackedTime());
+    const todayTrackedTime = getTodayTrackedTime();
+
+    // Get daily goal if settings exist
+    const dailyGoal = settings?.goals?.daily || 480; // Default 8 hours
+    const dailyProgress = Math.min(Math.round((todayTrackedTime / dailyGoal) * 100), 100);
 
     return (
         <Card title="Chấm Công">
@@ -308,19 +315,19 @@ export function TimeTracking() {
                             <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
                                 <div className="flex justify-between items-center mb-3">
                                     <span className="text-sm font-medium text-gray-600">Hôm nay</span>
-                                    <span className="text-lg font-bold text-gray-800">{todayTrackedTime}</span>
+                                    <span className="text-lg font-bold text-gray-800">{formatDuration(todayTrackedTime)}</span>
                                 </div>
 
                                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                                     <div
                                         className="h-full bg-indigo-500 rounded-full"
-                                        style={{width: `${Math.min((getTodayTrackedTime() / 480) * 100, 100)}%`}}
+                                        style={{width: `${dailyProgress}%`}}
                                     ></div>
                                 </div>
 
                                 <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
-                                    <span>Mục tiêu: 8h</span>
-                                    <span>{Math.round((getTodayTrackedTime() / 480) * 100)}% hoàn thành</span>
+                                    <span>Mục tiêu: {formatDuration(dailyGoal)}</span>
+                                    <span>{dailyProgress}% hoàn thành</span>
                                 </div>
                             </div>
                         </div>

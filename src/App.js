@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ProjectsProvider } from './hooks/useProjects';
 import { TimeEntriesProvider } from './hooks/useTimeEntries';
+import { SettingsProvider } from './hooks/useSettings';
 import { Header } from './components/Layout/Header';
 import { Footer } from './components/Layout/Footer';
 import { Navigation } from './components/Layout/Navigation';
@@ -9,6 +10,7 @@ import { ProjectManagement } from './components/ProjectManagement';
 import { TimeTracking } from './components/TimeTracking/TimeTracking';
 import { HistoryView } from './components/TimeTracking/HistoryView';
 import { Reports } from './components/Reports';
+import { Settings } from './components/Settings';
 import { DataImportExport } from './components/DataManagement/DataImportExport';
 import './styles/tailwind.css';
 
@@ -22,6 +24,7 @@ function AppContent() {
         { id: 'projects', label: 'Dự Án', icon: 'projects' },
         { id: 'history', label: 'Lịch Sử', icon: 'history' },
         { id: 'reports', label: 'Báo Cáo', icon: 'reports' },
+        { id: 'settings', label: 'Cài Đặt', icon: 'settings' },
         { id: 'data', label: 'Dữ Liệu', icon: 'data' }
     ];
 
@@ -38,6 +41,8 @@ function AppContent() {
                 return <HistoryView />;
             case 'reports':
                 return <Reports />;
+            case 'settings':
+                return <Settings />;
             case 'data':
                 return <DataImportExport />;
             default:
@@ -68,11 +73,13 @@ function AppContent() {
 
 function App() {
     return (
-        <ProjectsProvider>
-            <TimeEntriesProvider>
-                <AppContent />
-            </TimeEntriesProvider>
-        </ProjectsProvider>
+        <SettingsProvider>
+            <ProjectsProvider>
+                <TimeEntriesProvider>
+                    <AppContent />
+                </TimeEntriesProvider>
+            </ProjectsProvider>
+        </SettingsProvider>
     );
 }
 

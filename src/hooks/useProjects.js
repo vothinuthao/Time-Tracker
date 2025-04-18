@@ -67,11 +67,20 @@ export function ProjectsProvider({ children }) {
         try {
             setLoading(true);
 
-            const updatedProject = projectService.update(id, updatedData);
+            const projectToUpdate = projects.find(project => project.id === id);
+            if (!projectToUpdate) throw new Error('Project not found');
 
-            setProjects(projects.map(project =>
+            const updatedProject = {
+                ...projectToUpdate,
+                ...updatedData
+            };
+
+            const updatedProjects = projects.map(project =>
                 project.id === id ? updatedProject : project
-            ));
+            );
+
+            projectService.save(updatedProjects);
+            setProjects(updatedProjects);
 
             setLoading(false);
             return updatedProject;
