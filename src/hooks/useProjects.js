@@ -1,5 +1,7 @@
-﻿import React, { createContext, useState, useContext, useEffect } from 'react';
+﻿// src/hooks/useProjects.js
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { projectService } from '../services/localStorageService';
+import { useSettings } from './useSettings';
 
 const ProjectsContext = createContext();
 
@@ -8,6 +10,7 @@ export function ProjectsProvider({ children }) {
     const [currentProject, setCurrentProject] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const { settings } = useSettings();
 
     // Load projects from localStorage on initial render
     useEffect(() => {
@@ -37,19 +40,31 @@ export function ProjectsProvider({ children }) {
     };
 
     // Add a new project
-    const addProject = (projectName) => {
+    const addProject = (projectData) => {
         try {
             setLoading(true);
 
             // Create project color (random or predefined)
             const colors = ['#4F46E5', '#16A34A', '#EA580C', '#7C3AED', '#0369A1', '#BE123C'];
-            const color = colors[Math.floor(Math.random() * colors.length)];
+            const color = projectData.color || colors[Math.floor(Math.random() * colors.length)];
 
-            const newProject = projectService.create({
-                name: projectName,
+            // Ensure goals and rates are set with defaults if not provided
+            const newProjectData = {
+                ...projectData,
                 color,
+                goals: projectData.goals || {
+                    daily: settings?.goals?.daily || 480,
+                    weekly: settings?.goals?.weekly || 2400,
+                    monthly: settings?.goals?.monthly || 10080
+                },
+                rates: projectData.rates || {
+                    contributionPercentage: settings?.rates?.contributionPercentage || 10,
+                    currency: settings?.rates?.currency || 'VND'
+                },
                 createdAt: new Date().toISOString()
-            });
+            };
+
+            const newProject = projectService.create(newProjectData);
 
             setProjects([...projects, newProject]);
             setLoading(false);

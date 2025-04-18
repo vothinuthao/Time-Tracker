@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿// src/components/Reports/IncomeReport.jsx
+import React, { useState, useEffect } from 'react';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
 import { useSettings } from '../../hooks/useSettings';
 import { useProjects } from '../../hooks/useProjects';
@@ -24,76 +25,44 @@ export function IncomeReport() {
 
     const [incomeByProject, setIncomeByProject] = useState([]);
 
-    // const calculateIncomeForEntry = (entry, defaultRate = 0) => {
-    //     if (!settings) return { net: 0, contribution: 0, total: 0 };
-    //
-    //     const project = projects.find(p => p.id === entry.projectId);
-    //     const hourlyRate = (project && project.hourlyRate) || defaultRate;
-    //
-    //     const hours = entry.duration / 60;
-    //     const total = hours * hourlyRate;
-    //     const contribution = (total * settings.rates.contributionPercentage) / 100;
-    //     const net = total - contribution;
-    //
-    //     return {
-    //         net,
-    //         contribution,
-    //         total,
-    //         currency: settings.rates.currency
-    //     };
-    // };
     const calculateIncomeForEntry = (entry) => {
         if (!settings) return { net: 0, contribution: 0, total: 0 };
 
         // Find project
         const project = projects.find(p => p.id === entry.projectId);
-        // Use project rate or 0 if not available
-        const hourlyRate = (project && project.hourlyRate) || 0;
+
+        // Use project settings first, then fall back to global settings
+        const hourlyRate = project?.hourlyRate || 0;
+        const contributionPercentage = project?.rates?.contributionPercentage || settings.rates.contributionPercentage;
+        const currency = project?.rates?.currency || settings.rates.currency;
 
         // Calculate income
         const hours = entry.duration / 60;
         const total = hours * hourlyRate;
-        const contribution = (total * settings.rates.contributionPercentage) / 100;
+        const contribution = (total * contributionPercentage) / 100;
         const net = total - contribution;
 
         return {
             net,
             contribution,
             total,
-            currency: settings.rates.currency
+            currency
         };
     };
 
     // Calculate total income for multiple entries
-    // const calculateTotalIncome = (entries, defaultRate = 0) => {
-    //     const result = entries.reduce((acc, entry) => {
-    //         const income = calculateIncomeForEntry(entry, defaultRate);
-    //         return {
-    //             net: acc.net + income.net,
-    //             contribution: acc.contribution + income.contribution,
-    //             total: acc.total + income.total
-    //         };
-    //     }, { net: 0, contribution: 0, total: 0 });
-    //
-    //     return {
-    //         ...result,
-    //         currency: settings?.rates?.currency || 'VND'
-    //     };
-    // };
     const calculateTotalIncome = (entries) => {
         const result = entries.reduce((acc, entry) => {
             const income = calculateIncomeForEntry(entry);
             return {
                 net: acc.net + income.net,
                 contribution: acc.contribution + income.contribution,
-                total: acc.total + income.total
+                total: acc.total + income.total,
+                currency: income.currency // This might change across entries if they use different currencies
             };
-        }, { net: 0, contribution: 0, total: 0 });
+        }, { net: 0, contribution: 0, total: 0, currency: settings?.rates?.currency || 'VND' });
 
-        return {
-            ...result,
-            currency: settings?.rates?.currency || 'VND'
-        };
+        return result;
     };
 
     // Calculate income data when entries or settings change
@@ -143,7 +112,9 @@ export function IncomeReport() {
                     color: entry.projectColor || '#4F46E5',
                     minutes: 0,
                     entries: [],
-                    hourlyRate: project?.hourlyRate || 0
+                    hourlyRate: project?.hourlyRate || 0,
+                    contributionPercentage: project?.rates?.contributionPercentage || settings.rates.contributionPercentage,
+                    currency: project?.rates?.currency || settings.rates.currency
                 });
             }
 
@@ -154,7 +125,7 @@ export function IncomeReport() {
 
         // Calculate income for each project
         const projectsIncomeData = Array.from(projectsMap.values()).map(project => {
-            const income = calculateTotalIncome(project.entries, project.hourlyRate);
+            const income = calculateTotalIncome(project.entries);
 
             // Calculate hourly average if there are any entries
             const hourlyAverage = project.minutes > 0 ?
@@ -175,7 +146,6 @@ export function IncomeReport() {
     }, [timeEntries, settings, projects, getCurrentMonthEntries]);
 
     // Check if we have any projects with hourly rates set
-    // const hasProjectsWithRates = projects.some(project => project.hourlyRate > 0);
     const hasProjectsWithRates = projects.some(project => project.hourlyRate > 0);
 
     if (!settings || !hasProjectsWithRates) {
@@ -187,6 +157,11 @@ export function IncomeReport() {
             </Card>
         );
     }
+
+    // Helper function to format currency based on project settings
+    const formatProjectCurrency = (amount, currency) => {
+        return amount.toLocaleString('vi-VN') + ' ' + currency;
+    };
 
     return (
         <Card title="Báo Cáo Thu Nhập">
@@ -204,18 +179,24 @@ export function IncomeReport() {
 
                         <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
                             <p className="text-sm text-purple-700 mb-1">Tổng Thu</p>
-                            <p className="text-xl font-bold text-purple-800">{formatCurrency(monthlyIncome.income.total)}</p>
+                            <p className="text-xl font-bold text-purple-800">
+                                {formatProjectCurrency(monthlyIncome.income.total, monthlyIncome.income.currency)}
+                            </p>
                         </div>
 
                         <div className="bg-red-50 p-4 rounded-lg border border-red-100">
                             <p className="text-sm text-red-700 mb-1">Đóng Góp</p>
-                            <p className="text-xl font-bold text-red-800">{formatCurrency(monthlyIncome.income.contribution)}</p>
-                            <p className="text-xs text-red-600 mt-1">{settings.rates.contributionPercentage}% tổng thu</p>
+                            <p className="text-xl font-bold text-red-800">
+                                {formatProjectCurrency(monthlyIncome.income.contribution, monthlyIncome.income.currency)}
+                            </p>
+                            <p className="text-xs text-red-600 mt-1">(Tùy thuộc vào cài đặt từng dự án)</p>
                         </div>
 
                         <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                             <p className="text-sm text-green-700 mb-1">Thực Nhận</p>
-                            <p className="text-xl font-bold text-green-800">{formatCurrency(monthlyIncome.income.net)}</p>
+                            <p className="text-xl font-bold text-green-800">
+                                {formatProjectCurrency(monthlyIncome.income.net, monthlyIncome.income.currency)}
+                            </p>
                         </div>
                     </div>
 
@@ -251,12 +232,16 @@ export function IncomeReport() {
 
                         <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
                             <p className="text-sm text-purple-700 mb-1">Tổng Thu</p>
-                            <p className="text-xl font-bold text-purple-800">{formatCurrency(yearlyIncome.income.total)}</p>
+                            <p className="text-xl font-bold text-purple-800">
+                                {formatProjectCurrency(yearlyIncome.income.total, yearlyIncome.income.currency)}
+                            </p>
                         </div>
 
                         <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                             <p className="text-sm text-green-700 mb-1">Thực Nhận</p>
-                            <p className="text-xl font-bold text-green-800">{formatCurrency(yearlyIncome.income.net)}</p>
+                            <p className="text-xl font-bold text-green-800">
+                                {formatProjectCurrency(yearlyIncome.income.net, yearlyIncome.income.currency)}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -279,26 +264,36 @@ export function IncomeReport() {
                                         </div>
                                         <div className="text-right">
                                             <span className="text-gray-500 text-sm mr-2">{formatDuration(project.minutes)}</span>
-                                            <span className="text-gray-800 font-semibold">{formatCurrency(project.income.total)}</span>
+                                            <span className="text-gray-800 font-semibold">
+                                                {formatProjectCurrency(project.income.total, project.income.currency)}
+                                            </span>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-3 text-sm">
                                         <div>
                                             <span className="text-gray-500">Giá theo giờ:</span>
-                                            <span className="font-medium text-gray-800 ml-2">{formatCurrency(project.hourlyRate)}</span>
+                                            <span className="font-medium text-gray-800 ml-2">
+                                                {formatProjectCurrency(project.hourlyRate, project.currency)}
+                                            </span>
                                         </div>
                                         <div>
                                             <span className="text-gray-500">Tổng thu:</span>
-                                            <span className="font-medium text-gray-800 ml-2">{formatCurrency(project.income.total)}</span>
+                                            <span className="font-medium text-gray-800 ml-2">
+                                                {formatProjectCurrency(project.income.total, project.income.currency)}
+                                            </span>
                                         </div>
                                         <div>
-                                            <span className="text-gray-500">Đóng góp:</span>
-                                            <span className="font-medium text-gray-800 ml-2">{formatCurrency(project.income.contribution)}</span>
+                                            <span className="text-gray-500">Đóng góp ({project.contributionPercentage}%):</span>
+                                            <span className="font-medium text-gray-800 ml-2">
+                                                {formatProjectCurrency(project.income.contribution, project.income.currency)}
+                                            </span>
                                         </div>
                                         <div>
                                             <span className="text-gray-500">Thực nhận:</span>
-                                            <span className="font-medium text-green-600 ml-2">{formatCurrency(project.income.net)}</span>
+                                            <span className="font-medium text-green-600 ml-2">
+                                                {formatProjectCurrency(project.income.net, project.income.currency)}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

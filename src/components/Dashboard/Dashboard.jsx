@@ -1,6 +1,8 @@
-﻿import React from 'react';
+﻿// src/components/Dashboard/Dashboard.jsx
+import React from 'react';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
 import { useSettings } from '../../hooks/useSettings';
+import { useProjects } from '../../hooks/useProjects';
 import { Card } from '../UI/Card';
 import { formatDuration } from '../../utils/timeCalculator';
 import { formatDate, formatTime } from '../../utils/dateFormatter';
@@ -8,6 +10,10 @@ import { formatDate, formatTime } from '../../utils/dateFormatter';
 export function Dashboard() {
     const { timeEntries, getTodayTrackedTime, getCurrentMonthEntries } = useTimeEntries();
     const { settings, calculateIncome, formatCurrency } = useSettings();
+    const { projects, getCurrentProject } = useProjects();
+
+    // Get current project and its specific goals if available
+    const currentProject = getCurrentProject();
 
     // Calculate summary data
     const todayTime = getTodayTrackedTime();
@@ -28,10 +34,10 @@ export function Dashboard() {
         .filter(entry => new Date(entry.startTime) >= startOfWeek)
         .reduce((total, entry) => total + entry.duration, 0);
 
-    // Get goals if settings exist
-    const dailyGoal = settings?.goals?.daily || 480; // Default 8 hours
-    const weeklyGoal = settings?.goals?.weekly || 2400; // Default 40 hours
-    const monthlyGoal = settings?.goals?.monthly || 10080; // Default 168 hours
+    // Get goals from current project if available, otherwise from settings
+    const dailyGoal = currentProject?.goals?.daily || settings?.goals?.daily || 480; // Default 8 hours
+    const weeklyGoal = currentProject?.goals?.weekly || settings?.goals?.weekly || 2400; // Default 40 hours
+    const monthlyGoal = currentProject?.goals?.monthly || settings?.goals?.monthly || 10080; // Default 168 hours
 
     // Calculate progress percentages
     const todayProgress = Math.min(Math.round((todayTime / dailyGoal) * 100), 100);
@@ -43,9 +49,31 @@ export function Dashboard() {
         .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
         .slice(0, 5);
 
-    // Calculate income if hourly rate is set
-    const hasIncomeSettings = settings?.rates?.hourlyRate > 0;
-    const monthlyIncome = hasIncomeSettings ? calculateIncome(monthTime) : null;
+    // Calculate income based on current project if available
+    const hasIncomeSettings = currentProject?.hourlyRate > 0 || settings?.rates?.hourlyRate > 0;
+
+    // Use project's contribution percentage if available
+    const contributionPercentage = currentProject?.rates?.contributionPercentage || settings?.rates?.contributionPercentage;
+    const currency = currentProject?.rates?.currency || settings?.rates?.currency;
+
+    // Calculate monthly income for the current project
+    const calculateProjectIncome = (minutes) => {
+        const hours = minutes / 60;
+        const hourlyRate = currentProject?.hourlyRate || settings?.rates?.hourlyRate || 0;
+
+        const total = hours * hourlyRate;
+        const contribution = (total * contributionPercentage) / 100;
+        const net = total - contribution;
+
+        return {
+            net,
+            contribution,
+            total,
+            currency
+        };
+    };
+
+    const monthlyIncome = hasIncomeSettings ? calculateProjectIncome(monthTime) : null;
 
     return (
         <div className="space-y-6">
@@ -136,17 +164,23 @@ export function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-green-50 p-4 rounded-lg border border-green-100">
                             <p className="text-sm text-green-700 mb-1">Thực Nhận</p>
-                            <p className="text-2xl font-bold text-green-800">{formatCurrency(monthlyIncome.net)}</p>
+                            <p className="text-2xl font-bold text-green-800">
+                                {monthlyIncome.net.toLocaleString('vi-VN')} {monthlyIncome.currency}
+                            </p>
                         </div>
                         <div className="bg-red-50 p-4 rounded-lg border border-red-100">
                             <p className="text-sm text-red-700 mb-1">
-                                Đóng Góp ({settings.rates.contributionPercentage}%)
+                                Đóng Góp ({contributionPercentage}%)
                             </p>
-                            <p className="text-2xl font-bold text-red-800">{formatCurrency(monthlyIncome.contribution)}</p>
+                            <p className="text-2xl font-bold text-red-800">
+                                {monthlyIncome.contribution.toLocaleString('vi-VN')} {monthlyIncome.currency}
+                            </p>
                         </div>
                         <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
                             <p className="text-sm text-purple-700 mb-1">Tổng Thu</p>
-                            <p className="text-2xl font-bold text-purple-800">{formatCurrency(monthlyIncome.total)}</p>
+                            <p className="text-2xl font-bold text-purple-800">
+                                {monthlyIncome.total.toLocaleString('vi-VN')} {monthlyIncome.currency}
+                            </p>
                         </div>
                     </div>
                 </Card>

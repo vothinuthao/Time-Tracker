@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿// src/components/TimeTracking/TimeTracking.jsx
+import React, { useState, useEffect } from 'react';
 import { useProjects } from '../../hooks/useProjects';
 import { useTimeEntries } from '../../hooks/useTimeEntries';
 import { useSettings } from '../../hooks/useSettings';
@@ -124,8 +125,8 @@ export function TimeTracking() {
     const currentProjectData = getCurrentProject();
     const todayTrackedTime = getTodayTrackedTime();
 
-    // Get daily goal if settings exist
-    const dailyGoal = settings?.goals?.daily || 480; // Default 8 hours
+    // Get daily goal from current project if available, otherwise from settings
+    const dailyGoal = currentProjectData?.goals?.daily || settings?.goals?.daily || 480; // Default 8 hours
     const dailyProgress = Math.min(Math.round((todayTrackedTime / dailyGoal) * 100), 100);
 
     return (
